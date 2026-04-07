@@ -1,0 +1,12 @@
+name: incident-triage-env
+description: Simulates debugging of distributed system failures for AI agent training
+version: "1.0"
+interface:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+tasks:
+  - easy
+  - medium
+  - hard
+scoring: 0.0 to 1.0
