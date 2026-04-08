@@ -14,4 +14,8 @@ dependencies = [
 ]
 
 [project.scripts]
+<<<<<<< HEAD
 server = "server.app:main"
+=======
+server = "server.app:main"
+>>>>>>> e12b981e38929ad56abec1a80f58e6bac9cc38aa

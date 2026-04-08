@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 from fastapi import FastAPI, HTTPException, Request
+=======
+from fastapi import FastAPI, HTTPException
+>>>>>>> e12b981e38929ad56abec1a80f58e6bac9cc38aa
 from fastapi.middleware.cors import CORSMiddleware
 from env import IncidentEnv, Action
 from scenarios import SCENARIOS
@@ -27,6 +31,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Enable CORS (important for HF + validator)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 env = IncidentEnv()
 _current_task = "easy"
 
@@ -35,7 +48,12 @@ _current_task = "easy"
 def reset():
     global _current_task
 
+<<<<<<< HEAD
     _current_task = "easy"  # validator does not send task
+=======
+    # Validator does NOT send task → default to easy
+    _current_task = "easy"
+>>>>>>> e12b981e38929ad56abec1a80f58e6bac9cc38aa
     env.load_scenario(SCENARIOS[_current_task])
 
     obs = env.reset()
@@ -79,4 +97,8 @@ def state():
 
 @app.get("/")
 def root():
+<<<<<<< HEAD
     return {"message": "Incident Triage API is running"}
+=======
+    return {"status": "ok"}
+>>>>>>> e12b981e38929ad56abec1a80f58e6bac9cc38aa
