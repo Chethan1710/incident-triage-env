@@ -1,0 +1,13 @@
+[project]
+name = "incident-triage-env"
+version = "0.1.0"
+description = "AI Incident Triage Environment"
+authors = [{name = "Chethan"}]
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic"
+]
