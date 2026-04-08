@@ -1,29 +1,55 @@
-from fastapi import FastAPI, HTTPException
-from env import IncidentEnv, Action, Observation, Reward
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from env import IncidentEnv, Action
 from scenarios import SCENARIOS
 from grader import grade
 
-app = FastAPI(title="AI Incident Triage Env")
+app = FastAPI(
+    title="AI Incident Triage Env",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
+
+# Fix Hugging Face proxy routing
+@app.middleware("http")
+async def root_path_middleware(request: Request, call_next):
+    request.scope["root_path"] = ""
+    response = await call_next(request)
+    return response
+
+# Enable CORS (important for validator + HF)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 env = IncidentEnv()
-_current_task = None
+_current_task = "easy"
 
 
 @app.post("/reset")
-def reset(task: str = "easy") -> Observation:
+def reset():
     global _current_task
-    if task not in SCENARIOS:
-        raise HTTPException(400, f"Unknown task: {task}. Choose from {list(SCENARIOS.keys())}")
-    env.load_scenario(SCENARIOS[task])
-    _current_task = task
-    return env.reset()
+
+    _current_task = "easy"  # validator does not send task
+    env.load_scenario(SCENARIOS[_current_task])
+
+    obs = env.reset()
+    return obs.dict()
 
 
 @app.post("/step")
-def step(action: Action):
+def step(action: dict):
     if env._state is None:
         raise HTTPException(400, "Call /reset first")
-    obs, reward, done, info = env.step(action)
+
+    act = Action(**action)
+    obs, reward, done, info = env.step(act)
+
     score = None
     if done:
         score = grade(
@@ -33,16 +59,24 @@ def step(action: Action):
             env.max_steps,
             obs.history,
         )
-    return {"observation": obs, "reward": reward, "done": done, "info": info, "score": score}
+
+    return {
+        "observation": obs.dict(),
+        "reward": reward.value,
+        "done": done,
+        "info": info,
+        "score": score,
+    }
 
 
 @app.get("/state")
-def state() -> Observation:
+def state():
     if env._state is None:
         raise HTTPException(400, "Call /reset first")
-    return env.state()
+
+    return env.state().dict()
 
 
 @app.get("/")
 def root():
-    return {"status": "ok", "tasks": list(SCENARIOS.keys())}
+    return {"message": "Incident Triage API is running"}
