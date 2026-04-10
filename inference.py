@@ -34,7 +34,7 @@ def run_task(task_name: str, verbose: bool = True) -> dict:
     step = 0
 
     if verbose:
-        print(f"[START] Task: {task_name}")
+        print(f"[START] task={task_name} env=incident_triage model=triage_agent")
 
     while not done:
         step += 1
@@ -45,9 +45,9 @@ def run_task(task_name: str, verbose: bool = True) -> dict:
         if verbose:
             target = action.target if action.target is not None else "None"
             print(
-                f"[STEP] action={action.action_type} "
-                f"target={target} "
-                f"reward={round(reward.value, 2)}"
+                f"[STEP] step={step} action={action.action_type} "
+                f"target={target} reward={reward.value:.2f} "
+                f"done={str(done).lower()} error=null"
             )
 
     correct = info.get("correct", False)
@@ -56,9 +56,9 @@ def run_task(task_name: str, verbose: bool = True) -> dict:
 
     if verbose:
         print(
-            f"[END] correct={correct} "
-            f"steps={steps} "
-            f"score={round(score, 4)}"
+            f"[END] success={str(correct).lower()} "
+            f"steps={steps} score={score:.4f} "
+            f"rewards={total_reward:.2f}"
         )
 
     return {

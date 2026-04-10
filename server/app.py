@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import sys
 import os
@@ -21,8 +21,7 @@ _current_scenario: Optional[str] = None
 
 
 class StepRequest(BaseModel):
-    action_type: str
-    target: Optional[str] = None
+    action: Dict[str, Any]
 
 
 class ResetRequest(BaseModel):
@@ -70,13 +69,17 @@ async def step(request: StepRequest):
             detail="Environment not initialized. Call /reset first."
         )
 
-    if not request.action_type:
+    action_data = request.action
+    action_type = action_data.get("action_type", "")
+    target = action_data.get("target")
+
+    if not action_type:
         raise HTTPException(
             status_code=400,
             detail="action_type is required"
         )
 
-    action = Action(action_type=request.action_type, target=request.target)
+    action = Action(action_type=action_type, target=target)
     obs, reward, done, info = _env.step(action)
 
     return JSONResponse(content={
