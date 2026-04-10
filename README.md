@@ -1,3 +1,14 @@
+---
+title: Incident Triage AI
+emoji: 🚨
+colorFrom: red
+colorTo: blue
+sdk: docker
+sdk_version: "1.0"
+app_file: app.py
+pinned: false
+---
+
 # Incident Triage AI System
 
 A custom-built AI agent for automated incident triage, designed to identify root causes in distributed systems using structured reasoning, dependency analysis, and multi-step decision making.
