@@ -1,22 +1,4 @@
-from pydantic import BaseModel
-from typing import List, Dict, Optional
-
-
-class Observation(BaseModel):
-    alerts: List[Dict]
-    logs: List[str]
-    visible_services: List[str]
-    dependencies: Dict[str, List[str]]
-    history: List[Dict]
-
-
-class Action(BaseModel):
-    action_type: str
-    target: Optional[str] = None
-
-
-class Reward(BaseModel):
-    value: float
+from models import Observation, Action, Reward
 
 
 class IncidentEnv:
@@ -59,7 +41,7 @@ class IncidentEnv:
                 s["logs"].extend(extra)
                 reward = 2.0
             else:
-                reward = -1.0  # redundant inspect
+                reward = -1.0
 
         elif act == "filter_alerts":
             noise = self.scenario.get("noise_alerts", [])
@@ -68,7 +50,7 @@ class IncidentEnv:
             reward = 1.0 if len(s["alerts"]) < before else -1.0
 
         elif act == "correlate_logs":
-            s["logs"] = list(set(s["logs"]))  # deduplicate
+            s["logs"] = list(set(s["logs"]))
             reward = 1.0
 
         elif act == "identify_root_cause":
@@ -83,7 +65,7 @@ class IncidentEnv:
             info["steps"] = self.steps
 
         else:
-            reward = -1.0  # unknown action
+            reward = -1.0
 
         if self.steps >= self.max_steps and not done:
             done = True

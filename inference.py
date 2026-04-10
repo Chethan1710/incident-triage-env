@@ -1,19 +1,28 @@
-import os
+"""
+Inference module for running local inference with the triage agent.
+This module runs entirely offline without API calls.
+"""
 
-API_BASE_URL = os.getenv("API_BASE_URL", "")
-MODEL_NAME = os.getenv("MODEL_NAME", "")
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-
-
-from env import IncidentEnv
-from scenarios import SCENARIOS
+from environment import IncidentEnv
+from tasks import SCENARIOS
 from agent import TriageAgent
-from grader import grade
+from graders import grade
 
 
 def run_task(task_name: str, verbose: bool = True) -> dict:
+    """
+    Run a single task with the triage agent.
+
+    Args:
+        task_name: One of "easy", "medium", "hard"
+        verbose: Whether to print progress
+
+    Returns:
+        dict with task results
+    """
+    if task_name not in SCENARIOS:
+        raise ValueError(f"Unknown task: {task_name}. Available: {list(SCENARIOS.keys())}")
+
     env = IncidentEnv()
     env.load_scenario(SCENARIOS[task_name])
     agent = TriageAgent()
@@ -61,6 +70,18 @@ def run_task(task_name: str, verbose: bool = True) -> dict:
     }
 
 
-if __name__ == "__main__":
+def run_all_tasks(verbose: bool = True) -> dict:
+    """
+    Run all tasks and return results.
+
+    Returns:
+        dict mapping task names to results
+    """
+    results = {}
     for task in ["easy", "medium", "hard"]:
-        run_task(task)
+        results[task] = run_task(task, verbose)
+    return results
+
+
+if __name__ == "__main__":
+    run_all_tasks(verbose=True)

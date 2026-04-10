@@ -1,8 +1,123 @@
-from main import app
-def main():
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from typing import Optional
+
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from environment import IncidentEnv
+from models import Observation, Action, Reward
+from tasks import SCENARIOS
+
+
+app = FastAPI(title="Incident Triage Env", version="1.0")
+
+# Global environment instance
+_env: Optional[IncidentEnv] = None
+_current_scenario: Optional[str] = None
+
+
+class StepRequest(BaseModel):
+    action_type: str
+    target: Optional[str] = None
+
+
+class ResetRequest(BaseModel):
+    scenario: str = "easy"
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.post("/reset")
+async def reset(request: ResetRequest):
+    global _env, _current_scenario
+
+    if request.scenario not in SCENARIOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid scenario: {request.scenario}. Available: {list(SCENARIOS.keys())}"
+        )
+
+    _env = IncidentEnv()
+    _env.load_scenario(SCENARIOS[request.scenario])
+    _current_scenario = request.scenario
+
+    obs = _env.reset()
+    return JSONResponse(content={
+        "alerts": obs.alerts,
+        "logs": obs.logs,
+        "visible_services": obs.visible_services,
+        "dependencies": obs.dependencies,
+        "history": obs.history,
+    })
+
+
+@app.post("/step")
+async def step(request: StepRequest):
+    global _env
+
+    if _env is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Environment not initialized. Call /reset first."
+        )
+
+    action = Action(action_type=request.action_type, target=request.target)
+    obs, reward, done, info = _env.step(action)
+
+    return JSONResponse(content={
+        "alerts": obs.alerts,
+        "logs": obs.logs,
+        "visible_services": obs.visible_services,
+        "dependencies": obs.dependencies,
+        "history": obs.history,
+        "reward": reward.value,
+        "done": done,
+        "info": info,
+    })
+
+
+@app.get("/state")
+async def state():
+    global _env
+
+    if _env is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Environment not initialized. Call /reset first."
+        )
+
+    obs = _env.state()
+    return JSONResponse(content={
+        "alerts": obs.alerts,
+        "logs": obs.logs,
+        "visible_services": obs.visible_services,
+        "dependencies": obs.dependencies,
+        "history": obs.history,
+    })
+
+
+@app.get("/scenarios")
+async def scenarios():
+    return {
+        "scenarios": list(SCENARIOS.keys()),
+        "details": {
+            key: {
+                "label": val["label"],
+                "tier": val["tier"],
+                "description": val["description"],
+            }
+            for key, val in SCENARIOS.items()
+        }
+    }
+
+
+if __name__ == "__main__":
     import uvicorn
-<<<<<<< HEAD
-    uvicorn.run("main:app", host="0.0.0.0", port=7860)
-=======
-    uvicorn.run("main:app", host="0.0.0.0", port=7860)
->>>>>>> e12b981e38929ad56abec1a80f58e6bac9cc38aa
+    uvicorn.run(app, host="0.0.0.0", port=8000)

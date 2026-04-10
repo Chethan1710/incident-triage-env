@@ -1,0 +1,53 @@
+SCENARIOS = {
+    "easy": {
+        "alerts": [
+            {"type": "timeout", "service": "database"},
+            {"type": "high_latency", "service": "api"},
+        ],
+        "logs": ["DB connection timeout after 30s", "API retry attempt 1/3 failed", "Connection pool exhausted"],
+        "initial_visible": ["api"],
+        "dependencies": {"api": ["database"], "database": [], "cache": ["database"]},
+        "service_logs": {"database": ["ERROR: max connections reached (limit: 100)", "Connection queue full"]},
+        "noise_alerts": [],
+        "root_cause": "database",
+        "label": "Easy",
+        "tier": "LOW",
+        "description": "Single service failure. Signals are direct and unambiguous.",
+    },
+    "medium": {
+        "alerts": [
+            {"type": "high_latency", "service": "api"},
+            {"type": "cache_miss", "service": "cache"},
+            {"type": "timeout", "service": "database"},
+            {"type": "cpu_spike", "service": "frontend"},
+        ],
+        "logs": ["Cache miss rate: 94%", "API response time: 2400ms", "DB slow query detected: 5.2s", "Frontend CPU: 87%"],
+        "initial_visible": ["api", "cache"],
+        "dependencies": {"frontend": ["api"], "api": ["database", "cache"], "database": [], "cache": ["database"]},
+        "service_logs": {"database": ["Slow query log: SELECT * took 5.2s", "Lock timeout on table orders"]},
+        "noise_alerts": [{"type": "cpu_spike", "service": "frontend"}],
+        "root_cause": "database",
+        "label": "Medium",
+        "tier": "MED",
+        "description": "Multiple alerts with noise. Root cause is one layer deep.",
+    },
+    "hard": {
+        "alerts": [
+            {"type": "high_latency", "service": "api"},
+            {"type": "error_rate", "service": "frontend"},
+            {"type": "memory_spike", "service": "api"},
+        ],
+        "logs": ["API heap growing: 2.1GB", "Frontend 500 errors: 43/min", "Config reload failed", "Stale config v1.2.0"],
+        "initial_visible": ["frontend"],
+        "dependencies": {"frontend": ["api"], "api": ["config_service", "database"], "config_service": [], "database": []},
+        "service_logs": {
+            "api": ["config_service unreachable: connection refused", "Falling back to stale config v1.2.0"],
+            "config_service": ["FATAL: deployment rollout failed at 60%", "Version mismatch: expected 2.0, got 1.2"],
+        },
+        "noise_alerts": [{"type": "memory_spike", "service": "api"}],
+        "root_cause": "config_service",
+        "label": "Hard",
+        "tier": "HIGH",
+        "description": "Misleading signals. Root cause is hidden two hops away.",
+    },
+}
