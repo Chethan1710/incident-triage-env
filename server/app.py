@@ -26,7 +26,7 @@ class StepRequest(BaseModel):
 
 
 class ResetRequest(BaseModel):
-    scenario: str = "easy"
+    scenario: Optional[str] = "easy"
 
 
 @app.get("/health")
@@ -35,18 +35,20 @@ async def health():
 
 
 @app.post("/reset")
-async def reset(request: ResetRequest):
+async def reset(request: Optional[ResetRequest] = None):
     global _env, _current_scenario
 
-    if request.scenario not in SCENARIOS:
+    scenario = request.scenario if request else "easy"
+
+    if scenario not in SCENARIOS:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid scenario: {request.scenario}. Available: {list(SCENARIOS.keys())}"
+            detail=f"Invalid scenario: {scenario}. Available: {list(SCENARIOS.keys())}"
         )
 
     _env = IncidentEnv()
-    _env.load_scenario(SCENARIOS[request.scenario])
-    _current_scenario = request.scenario
+    _env.load_scenario(SCENARIOS[scenario])
+    _current_scenario = scenario
 
     obs = _env.reset()
     return JSONResponse(content={
@@ -66,6 +68,12 @@ async def step(request: StepRequest):
         raise HTTPException(
             status_code=400,
             detail="Environment not initialized. Call /reset first."
+        )
+
+    if not request.action_type:
+        raise HTTPException(
+            status_code=400,
+            detail="action_type is required"
         )
 
     action = Action(action_type=request.action_type, target=request.target)
