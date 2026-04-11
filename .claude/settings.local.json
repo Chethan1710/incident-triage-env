@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(git reset:*)",
+      "Bash(git restore:*)",
+      "Bash(git commit:*)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(openenv validate:*)",
+      "Bash(python:*)",
+      "Bash(curl -s -X POST http://localhost:7860/reset -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -s -X POST http://localhost:7860/step -H \"Content-Type: application/json\" -d '{\"action\": {\"action_type\": \"inspect_service\", \"target\": \"database\"}}')",
+      "Bash(pkill -f \"uvicorn server.app\")",
+      "Bash(python3 -c \"import tomllib; tomllib.load\\(open\\('pyproject.toml', 'rb'\\)\\); print\\('Valid TOML'\\)\")",
+      "Bash(python3 -c \"import toml; toml.load\\('pyproject.toml'\\); print\\('Valid TOML'\\)\")",
+      "Bash(python3 -c \"import tomli; tomli.load\\('pyproject.toml'\\); print\\('Valid TOML'\\)\")",
+      "Bash(which openenv:*)",
+      "Bash(docker build:*)",
+      "Bash(where python:*)",
+      "Bash(pip index:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
