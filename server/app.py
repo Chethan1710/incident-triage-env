@@ -37,7 +37,7 @@ async def health():
 async def reset(request: Optional[ResetRequest] = None):
     global _env, _current_scenario
 
-    scenario = request.scenario if request else "easy"
+    scenario = request.scenario if request and request.scenario else "easy"
 
     if scenario not in SCENARIOS:
         raise HTTPException(
@@ -129,7 +129,11 @@ async def scenarios():
     }
 
 
-if __name__ == "__main__":
+def main():
     import uvicorn
     port = int(os.environ.get("PORT", 7860))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+
+if __name__ == "__main__":
+    main()
