@@ -6,18 +6,14 @@ def grade(task: str, correct: bool, steps: int, max_steps: int, decisions: list)
     decision_quality = useful / total
 
     if task == "easy":
-        return round(correctness, 4)
-
+        raw = correctness
     elif task == "medium":
-        return round(0.7 * correctness + 0.3 * efficiency, 4)
-
+        raw = 0.7 * correctness + 0.3 * efficiency
     elif task == "hard":
-        return round(
-            0.5 * correctness +
-            0.3 * efficiency +
-            0.2 * decision_quality,
-            4
-        )
+        raw = 0.5 * correctness + 0.3 * efficiency + 0.2 * decision_quality
+    else:
+        raw = 0.6 * correctness + 0.4 * efficiency
 
-    # default
-    return round(0.6 * correctness + 0.4 * efficiency, 4)
+    # Clamp to strictly between (0, 1)
+    score = max(0.01, min(0.99, raw))
+    return round(score, 4)

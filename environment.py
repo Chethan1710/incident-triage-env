@@ -7,12 +7,14 @@ class IncidentEnv:
         self._state = None
         self.steps = 0
         self.max_steps = 10
+        self._root_cause_evaluated = False
 
     def load_scenario(self, scenario: dict):
         self.scenario = scenario
 
     def reset(self) -> Observation:
         self.steps = 0
+        self._root_cause_evaluated = False
         self._state = {
             "alerts": list(self.scenario["alerts"]),
             "logs": list(self.scenario["logs"]),
@@ -54,6 +56,7 @@ class IncidentEnv:
             reward = 1.0
 
         elif act == "identify_root_cause":
+            self._root_cause_evaluated = True
             correct = self.scenario["root_cause"]
             if tgt == correct:
                 efficiency_bonus = max(0, (self.max_steps - self.steps) * 0.5)
@@ -69,8 +72,10 @@ class IncidentEnv:
 
         if self.steps >= self.max_steps and not done:
             done = True
-            reward -= 3.0
-            info["correct"] = False
+            # Only penalize once, not double-counting identify_root_cause penalty
+            if not self._root_cause_evaluated:
+                reward -= 3.0
+            info["correct"] = info.get("correct", False)
             info["steps"] = self.steps
 
         s["history"].append({"action": act, "target": tgt, "reward": reward})
