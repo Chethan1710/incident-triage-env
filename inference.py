@@ -3,6 +3,7 @@ Inference module for running inference with the triage agent via LLM proxy.
 """
 
 import os
+import json
 from openai import OpenAI
 
 from environment import IncidentEnv
@@ -11,18 +12,26 @@ from agent import TriageAgent
 from graders import grade
 
 
-# Initialize OpenAI client via proxy
-client = OpenAI(
-    base_url=os.environ["API_BASE_URL"],
-    api_key=os.environ["API_KEY"],
-)
+# Safely read env vars
+API_BASE_URL = os.getenv("API_BASE_URL")
+API_KEY = os.getenv("API_KEY")
+MODEL_NAME = os.getenv("MODEL_NAME", "triage-agent")
+
+if not API_BASE_URL or not API_KEY:
+    print("[WARN] Missing API_BASE_URL or API_KEY — using local agent fallback")
+    client = None
+else:
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
 
 def query_llm_for_action(obs, step, task_name):
     """
     Query the LLM proxy to decide the next action.
-    Makes a real API call through the proxy.
+    Falls back to local agent if LLM call fails.
     """
+    if client is None:
+        return _local_fallback_action(obs, task_name)
+
     alerts_summary = ", ".join([f"{a['type']}@{a['service']}" for a in obs.alerts[:5]])
     visible = ", ".join(obs.visible_services)
 
@@ -35,21 +44,36 @@ def query_llm_for_action(obs, step, task_name):
         f"If uncertain, prefer: inspect_service with the most suspicious service."
     )
 
-    response = client.chat.completions.create(
-        model="triage-agent",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.0,
-        max_tokens=100,
-    )
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            max_tokens=100,
+        )
 
-    import json
-    content = response.choices[0].message.content.strip()
-    if content.startswith("```"):
-        content = content.split("```")[1]
-        if content.startswith("json"):
-            content = content[4:].strip()
-    result = json.loads(content)
-    return result.get("action_type", "inspect_service"), result.get("target")
+        content = response.choices[0].message.content.strip()
+        if content.startswith("```"):
+            parts = content.split("```")
+            content = parts[1]
+            if content.startswith("json"):
+                content = content[4:].strip()
+        result = json.loads(content)
+        return result.get("action_type", "inspect_service"), result.get("target")
+
+    except Exception as e:
+        print(f"[WARN] LLM call failed: {e} — using local fallback")
+        return _local_fallback_action(obs, task_name)
+
+
+def _local_fallback_action(obs, task_name):
+    """
+    Local fallback using rule-based agent when LLM is unavailable.
+    """
+    agent = TriageAgent()
+    agent.reset()
+    action = agent.act(obs, step=1)
+    return action.action_type, action.target
 
 
 def run_task(task_name: str, verbose: bool = True) -> dict:
@@ -69,9 +93,9 @@ def run_task(task_name: str, verbose: bool = True) -> dict:
     env = IncidentEnv()
     env.load_scenario(SCENARIOS[task_name])
     agent = TriageAgent()
+    agent.reset()
 
     obs = env.reset()
-    agent.reset()
     done = False
     total_reward = 0.0
     step = 0
@@ -81,7 +105,6 @@ def run_task(task_name: str, verbose: bool = True) -> dict:
 
     while not done:
         step += 1
-        # Use LLM to decide action (makes API call through proxy)
         action_type, target = query_llm_for_action(obs, step, task_name)
         from models import Action
         action = Action(action_type=action_type, target=target)
@@ -89,15 +112,18 @@ def run_task(task_name: str, verbose: bool = True) -> dict:
         total_reward += reward.value
 
         if verbose:
-            target = action.target if action.target is not None else "None"
+            tgt = target if target is not None else "None"
             print(
-                f"[STEP] step={step} action={action.action_type} "
-                f"target={target} reward={reward.value:.2f} "
+                f"[STEP] step={step} action={action_type} "
+                f"target={tgt} reward={reward.value:.2f} "
                 f"done={str(done).lower()} error=null"
             )
 
+        if step >= env.max_steps:
+            done = True
+
     correct = info.get("correct", False)
-    steps = info.get("steps", env.steps)
+    steps = info.get("steps", step)
     score = grade(task_name, correct, steps, env.max_steps, obs.history)
 
     if verbose:
@@ -125,7 +151,17 @@ def run_all_tasks(verbose: bool = True) -> dict:
     """
     results = {}
     for task in ["easy", "medium", "hard"]:
-        results[task] = run_task(task, verbose)
+        try:
+            results[task] = run_task(task, verbose)
+        except Exception as e:
+            print(f"[ERROR] Task {task} failed: {e}")
+            results[task] = {
+                "task": task,
+                "correct": False,
+                "steps": 0,
+                "score": 0.01,
+                "total_reward": 0.0,
+            }
     return results
 
 
